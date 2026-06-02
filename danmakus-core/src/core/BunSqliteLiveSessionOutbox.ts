@@ -10,9 +10,8 @@ import {
 } from './SqliteLiveSessionOutbox.js';
 
 export const DEFAULT_BUN_LIVE_SESSION_OUTBOX_PATH = resolve(
-  process.cwd(),
-  '.danmakus',
-  'danmakus-live-session-outbox-streamer.sqlite3',
+  process.env.DANMAKUS_OUTBOX_PATH ||
+    resolve(process.cwd(), '.danmakus', 'danmakus-live-session-outbox-streamer.sqlite3'),
 );
 
 type BunSqliteDatabase = {

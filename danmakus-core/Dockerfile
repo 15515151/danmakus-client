@@ -15,12 +15,15 @@ RUN bun build --compile --minify --target=bun-linux-x64-musl ./src/cli/index.ts 
 
 FROM alpine:3.20 AS release
 
-ENV NODE_ENV=production
+ENV NODE_ENV=production \
+    DANMAKUS_OUTBOX_PATH=/tmp/danmakus-live-session-outbox-streamer.sqlite3
 WORKDIR /app
 
 RUN apk add --no-cache libstdc++ libgcc \
     && addgroup -S danmakus \
-    && adduser -S danmakus -G danmakus
+    && adduser -S danmakus -G danmakus \
+    && mkdir -p /app/.danmakus /data \
+    && chown -R danmakus:danmakus /app/.danmakus /data
 
 COPY --from=build /app/dist/danmakus ./danmakus
 
