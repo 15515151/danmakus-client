@@ -316,6 +316,48 @@ describe("DanmakuMessageQueue", () => {
     expect(queue.getPendingCount()).toBe(0);
   });
 
+  it("acknowledges official uploads even when the custom upload callback throws", async () => {
+    const ackedIds: number[] = [];
+    const dueRecords: LiveSessionOutboxItem[] = [{
+      id: 11,
+      streamerUid: TEST_STREAMER_UID,
+      eventTsMs: 1710000001000,
+      payload: new Uint8Array([1, 2, 3]),
+      retryCount: 0,
+      nextRetryAtMs: 1710000001000,
+    }];
+
+    const queue = new DanmakuMessageQueue({
+      isRunning: () => true,
+      isStopping: () => false,
+      getRuntimeConnection: () => ({
+        sendArchiveBatch: async () => ({ rejected: [] }),
+      }),
+      getLiveSessionOutbox: () => createOutboxStore({
+        countPending: async () => 1,
+        listDue: async () => dueRecords,
+        ack: async (ids) => {
+          ackedIds.push(...ids);
+          return ids.length;
+        },
+      }),
+      resolveRecordingStreamerUid: () => null,
+      uploadCustomArchiveBatch: () => {
+        throw new Error('custom upload failed');
+      },
+      logger: new ScopedLogger("DanmakuMessageQueueTest"),
+      recordError: () => undefined,
+      emitError: () => undefined,
+      emitQueueChanged: () => undefined,
+    });
+
+    await queue.refreshArchiveStats();
+    await queue.flushPendingMessages();
+
+    expect(ackedIds).toEqual([11]);
+    expect(queue.getPendingCount()).toBe(0);
+  });
+
   it("attempts archive upload even when the runtime soft connection flag is false", async () => {
     const sentIds: number[] = [];
     const ackedIds: number[] = [];

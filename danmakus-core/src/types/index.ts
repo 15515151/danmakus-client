@@ -98,6 +98,8 @@ export interface DanmakuConfig {
   lockAcquireForceTakeover?: boolean;
   errorHistoryLimit?: number;
   liveSessionOutbox?: LiveSessionOutboxStore;
+  customApiEndpoint?: string;
+  targetUids?: number[];
 }
 
 // CookieCloud响应类型
@@ -349,4 +351,6 @@ export interface CliOptions {
   verbose?: boolean;
   token?: string;
   logLevel?: LogLevel;
+  customApiEndpoint?: string;
+  targetUids?: number[];
 }

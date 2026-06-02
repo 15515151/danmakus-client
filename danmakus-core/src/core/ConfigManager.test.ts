@@ -94,4 +94,30 @@ describe('ConfigManager CookieCloud overrides', () => {
 
     expect(manager.getConfig().excludedServerRoomUserIds).toEqual([100, 200, 300]);
   });
+
+  test('normalizes custom archive config and keeps it local across account config', () => {
+    const manager = new ConfigManager({
+      runtimeUrl: 'https://example.com/api/v2/core-runtime',
+      customApiEndpoint: '  https://custom.example/archive  ',
+      targetUids: [300, -1, 200, 300, 100.8]
+    });
+
+    expect(manager.getConfig().customApiEndpoint).toBe('https://custom.example/archive');
+    expect(manager.getConfig().targetUids).toEqual([100, 200, 300]);
+
+    manager.applyAccountConfig({
+      maxConnections: 5,
+      runtimeUrl: 'https://example.com/api/v2/core-runtime',
+      autoReconnect: true,
+      reconnectInterval: 5000,
+      statusCheckInterval: 30,
+      streamers: [],
+      requestServerRooms: true,
+      allowedAreas: [],
+      allowedParentAreas: []
+    });
+
+    expect(manager.getConfig().customApiEndpoint).toBe('https://custom.example/archive');
+    expect(manager.getConfig().targetUids).toEqual([100, 200, 300]);
+  });
 });

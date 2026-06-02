@@ -2,6 +2,7 @@ import { DanmakuConfig, CliOptions, CoreControlConfigDto } from '../types/index.
 
 const DEFAULT_COOKIE_CLOUD_HOST = 'https://cookie.danmakus.com';
 const DEFAULT_RUNTIME_URL = 'https://backend.danmakus.com/api/v2/core-runtime';
+const DEFAULT_CUSTOM_API_ENDPOINT = 'http://danmakus-archive-backend:8787/archive';
 
 export class ConfigManager {
   private config: DanmakuConfig;
@@ -40,6 +41,15 @@ export class ConfigManager {
       return undefined;
     }
     return Math.min(100, Math.floor(next));
+  }
+
+  private normalizeCustomApiEndpoint(value?: string | null): string | undefined {
+    if (typeof value !== 'string') {
+      return undefined;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
   }
 
   private normalizeUidList(value: number[] | null | undefined): number[] {
@@ -82,6 +92,7 @@ export class ConfigManager {
       errorHistoryLimit: 50,
       ...safeOptions,
       runtimeUrl: DEFAULT_RUNTIME_URL,
+      customApiEndpoint: safeOptions.customApiEndpoint ?? DEFAULT_CUSTOM_API_ENDPOINT,
       // 录制主播来源统一由 account.Recording（服务端分配）管理
       streamers: []
     };
@@ -92,6 +103,8 @@ export class ConfigManager {
     this.config.cookieRefreshInterval = this.normalizeCookieRefreshInterval(this.config.cookieRefreshInterval);
     this.config.capacityOverride = this.normalizeCapacityOverride(this.config.capacityOverride);
     this.config.excludedServerRoomUserIds = this.normalizeUidList(this.config.excludedServerRoomUserIds);
+    this.config.customApiEndpoint = this.normalizeCustomApiEndpoint(this.config.customApiEndpoint);
+    this.config.targetUids = this.normalizeUidList(this.config.targetUids);
   }
 
   /**
@@ -130,6 +143,14 @@ export class ConfigManager {
       this.config.logLevel = options.logLevel;
     } else if (options.verbose) {
       this.config.logLevel = 'debug';
+    }
+
+    if (options.customApiEndpoint !== undefined) {
+      this.config.customApiEndpoint = this.normalizeCustomApiEndpoint(options.customApiEndpoint);
+    }
+
+    if (options.targetUids !== undefined) {
+      this.config.targetUids = this.normalizeUidList(options.targetUids);
     }
   }
 
@@ -196,6 +217,8 @@ export class ConfigManager {
     this.config.cookieRefreshInterval = this.normalizeCookieRefreshInterval(this.config.cookieRefreshInterval);
     this.config.capacityOverride = this.normalizeCapacityOverride(this.config.capacityOverride);
     this.config.excludedServerRoomUserIds = this.normalizeUidList(this.config.excludedServerRoomUserIds);
+    this.config.customApiEndpoint = this.normalizeCustomApiEndpoint(this.config.customApiEndpoint);
+    this.config.targetUids = this.normalizeUidList(this.config.targetUids);
   }
 
   /**

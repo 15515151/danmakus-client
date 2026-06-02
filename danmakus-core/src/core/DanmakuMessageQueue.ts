@@ -38,6 +38,7 @@ interface DanmakuMessageQueueContext {
   getRuntimeConnection(): Pick<RuntimeConnection, 'sendArchiveBatch'> | undefined;
   getLiveSessionOutbox(): LiveSessionOutboxStore | undefined;
   resolveRecordingStreamerUid(roomId: number): number | null;
+  uploadCustomArchiveBatch?(records: LiveSessionOutboxItem[]): void;
   logger: ScopedLogger;
   recordError(error: unknown, context?: QueueErrorContext): void;
   emitError(error: Error, roomId?: number): void;
@@ -360,6 +361,11 @@ export class DanmakuMessageQueue {
   ): Promise<void> {
     try {
       const response = await runtimeConnection.sendArchiveBatch(records);
+      try {
+        void this.context.uploadCustomArchiveBatch?.(records);
+      } catch (error) {
+        this.context.logger.warn('自定义归档 API 调度失败:', error);
+      }
       const rejectedById = new Map(
         (response.rejected ?? [])
           .filter(item => item && Number.isFinite(Number(item.localId)) && Number(item.localId) > 0)

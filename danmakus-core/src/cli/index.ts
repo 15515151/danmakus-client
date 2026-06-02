@@ -14,6 +14,22 @@ const program = new Command();
 const DEFAULT_RUNTIME_URL = 'https://backend.danmakus.com/api/v2/core-runtime';
 const DEFAULT_COOKIE_CLOUD_HOST = 'https://cookie.danmakus.com';
 
+const parseUidList = (value?: string): number[] | undefined => {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const uids = Array.from(new Set(
+    value
+      .split(',')
+      .map(item => Number(item.trim()))
+      .filter(item => Number.isFinite(item) && item > 0)
+      .map(item => Math.floor(item))
+  )).sort((left, right) => left - right);
+
+  return uids.length > 0 ? uids : undefined;
+};
+
 program
   .name('danmakus')
   .description('danmakus.com 弹幕采集客户端')
@@ -26,6 +42,8 @@ program
   .option('-p, --cookie-password <password>', 'CookieCloud密码')
   .option('--cookie-host <host>', 'CookieCloud服务器地址')
   .option('--status-check-interval <seconds>', '主播状态检查间隔（秒）', '30')
+  .option('--custom-api-endpoint <url>', '自定义归档 API 地址')
+  .option('--target-uids <uids>', '发送到自定义归档 API 的主播 UID，逗号分隔', parseUidList)
   .option('-v, --verbose', '详细输出')
   .option('--log-level <level>', '日志级别 (debug|info|warn|error|silent)')
 
@@ -44,6 +62,8 @@ program
       const cookieCloudPassword = options.cookiePassword || process.env.DANMAKUS_COOKIECLOUD_PASSWORD;
       const cookieCloudHost = options.cookieHost || process.env.DANMAKUS_COOKIECLOUD_HOST || DEFAULT_COOKIE_CLOUD_HOST;
       const logLevel = options.logLevel || (options.verbose ? 'debug' : 'info');
+      const customApiEndpoint = options.customApiEndpoint || process.env.CUSTOM_API_ENDPOINT;
+      const targetUids = options.targetUids ?? parseUidList(process.env.TARGET_UIDS);
 
       if (capacityOverride !== undefined && (isNaN(capacityOverride) || capacityOverride < 1 || capacityOverride > 100)) {
         console.error('错误: 槽位覆盖数必须在1-100之间');
@@ -62,6 +82,12 @@ program
       console.log(`日志级别: ${logLevel}`);
       if (capacityOverride !== undefined) {
         console.log(`槽位覆盖数: ${capacityOverride}`);
+      }
+      if (customApiEndpoint) {
+        const targetText = targetUids?.length
+          ? `覆盖目标 UID 数: ${targetUids.length}`
+          : '目标 UID 来源: 账号录制列表';
+        console.log(`自定义归档 API: 已启用，${targetText}`);
       }
 
       console.log('账号配置: 自动从远端账号中心加载');
@@ -93,6 +119,8 @@ program
         accountToken,
         clientVersion: DEFAULT_CLI_CLIENT_VERSION,
         logLevel,
+        customApiEndpoint,
+        targetUids,
         liveSessionOutbox: createBunSqliteLiveSessionOutbox(),
         liveWsConnectionFactory: createCliLiveWsConnection,
       });
@@ -207,7 +235,15 @@ program
     console.log('   DANMAKUS_COOKIECLOUD_KEY="your-key" DANMAKUS_COOKIECLOUD_PASSWORD="your-password" danmakus --token "your-account-token"');
 
     console.log('');
-    console.log('5. 完整示例:');
+    console.log('5. 启用自定义归档 API（默认使用账号录制列表过滤）:');
+    console.log('   CUSTOM_API_ENDPOINT="https://your-api.example/archive" danmakus --token "your-account-token"');
+
+    console.log('');
+    console.log('6. 启用自定义归档 API 并覆盖目标 UID:');
+    console.log('   CUSTOM_API_ENDPOINT="https://your-api.example/archive" TARGET_UIDS="123,456" danmakus --token "your-account-token"');
+
+    console.log('');
+    console.log('7. 完整示例:');
     console.log('   danmakus --token "your-account-token" -k "your-key" -p "your-password" \\');
     console.log('     --cookie-host "https://cookie.example.com" --status-check-interval 30 -m 5 --capacity-override 3 -v');
 

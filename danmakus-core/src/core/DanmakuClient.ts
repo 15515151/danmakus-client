@@ -8,6 +8,7 @@ import { StreamerStatusManager } from './StreamerStatusManager.js';
 import { AccountApiClient } from './AccountApiClient.js';
 import { readCookieValue } from './BilibiliCookie.js';
 import { DanmakuMessageQueue } from './DanmakuMessageQueue.js';
+import { CustomArchiveApiClient } from './CustomArchiveApiClient.js';
 import { DanmakuRuntimeSync } from './DanmakuRuntimeSync.js';
 import { DanmakuHoldingRoomCoordinator } from './DanmakuHoldingRoomCoordinator.js';
 import { DanmakuControlState } from './DanmakuControlState.js';
@@ -26,6 +27,7 @@ import {
   CoreConnectionInfoDto,
   ErrorCategory,
   ClientErrorRecord,
+  LiveSessionOutboxItem,
   RecordingInfoDto,
   RuntimeRoomPullShortfallDto,
   UserInfo,
@@ -109,6 +111,7 @@ export class DanmakuClient extends EventEmitter<DanmakuClientEvents> {
   private remoteClients: CoreRuntimeStateDto[] = [];
   private recordings: RecordingInfoDto[] = [];
   private recordingRoomIds: number[] = [];
+  private customArchiveApiClient: CustomArchiveApiClient;
   private messageQueue: DanmakuMessageQueue;
   private isStopping = false;
   private messageCount = 0;
@@ -145,12 +148,14 @@ export class DanmakuClient extends EventEmitter<DanmakuClientEvents> {
     this.interactiveLoginProvider = config.interactiveLoginProvider;
     this.liveWsConfigProvider = config.liveWsConfigProvider;
     this.liveWsConnectionFactory = config.liveWsConnectionFactory;
+    this.customArchiveApiClient = new CustomArchiveApiClient(this.logger.child('CustomArchive'));
     this.messageQueue = new DanmakuMessageQueue({
       isRunning: () => this.isRunning,
       isStopping: () => this.isStopping,
       getRuntimeConnection: () => this.runtimeConnection,
       getLiveSessionOutbox: () => this.configManager.getConfig().liveSessionOutbox,
       resolveRecordingStreamerUid: (roomId) => this.resolveRoomStreamerUid(roomId),
+      uploadCustomArchiveBatch: (records) => this.uploadCustomArchiveBatch(records),
       logger: this.logger.child('Queue'),
       recordError: (error, context) => this.recordError(error, context),
       emitError: (error, roomId) => {
@@ -267,6 +272,26 @@ export class DanmakuClient extends EventEmitter<DanmakuClientEvents> {
     this.configManager.validate();
     this.applyRuntimeTunings(this.configManager.getConfig());
     this.initializeManagers();
+  }
+
+  private uploadCustomArchiveBatch(records: LiveSessionOutboxItem[]): void {
+    const config = this.configManager.getConfig();
+    void this.customArchiveApiClient.sendCustomArchiveBatch(records, {
+      endpoint: config.customApiEndpoint,
+      targetUids: this.resolveCustomArchiveTargetUids(config),
+      fetchImpl: config.fetchImpl,
+    });
+  }
+
+  private resolveCustomArchiveTargetUids(config: DanmakuConfig): number[] {
+    if (config.targetUids && config.targetUids.length > 0) {
+      return config.targetUids;
+    }
+
+    return Array.from(new Set(this.recordings
+      .map(item => Number(item.channel.uId))
+      .filter(uid => Number.isFinite(uid) && uid > 0)
+      .map(uid => Math.floor(uid))));
   }
 
   private initializeManagers(): void {
