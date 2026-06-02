@@ -1452,6 +1452,9 @@ export class DanmakuClient extends EventEmitter<DanmakuClientEvents> {
       .map(item => Number(item.channel.roomId))
       .filter(roomId => Number.isFinite(roomId) && roomId > 0)
       .map(roomId => Math.floor(roomId))));
+    this.logger.info(
+      `账号录制房间: ${this.recordingRoomIds.length}${this.recordingRoomIds.length > 0 ? ` (${this.recordingRoomIds.join(',')})` : ''}`
+    );
     this.statusManager?.updateRecordingRooms(this.recordingRoomIds);
   }
 
@@ -1496,6 +1499,13 @@ export class DanmakuClient extends EventEmitter<DanmakuClientEvents> {
     this.configManager.applyAccountConfig(remoteConfig);
     this.configManager.validate();
     const nextConfig = this.configManager.getConfig();
+    this.logger.info('账号核心配置已加载', {
+      maxConnections: nextConfig.maxConnections,
+      capacityOverride: nextConfig.capacityOverride ?? null,
+      requestServerRooms: nextConfig.requestServerRooms ?? true,
+      statusCheckInterval: nextConfig.statusCheckInterval,
+      excludedServerRoomUserIds: nextConfig.excludedServerRoomUserIds ?? [],
+    });
     this.accountConfigTag = nextTag;
     const hotConfigChanged = this.hasHotConfigChanges(previousConfig, nextConfig);
 

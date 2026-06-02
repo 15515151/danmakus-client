@@ -400,19 +400,24 @@ export class DanmakuHoldingRoomCoordinator {
   ): Promise<boolean> {
     const runtimeConnection = this.context.getRuntimeConnection();
     if (!runtimeConnection?.getConnectionState()) {
+      this.context.logger.info(`跳过站内补充分配请求: reason=${reason}, runtime未连接`);
       return false;
     }
     if (!this.isServerAssignmentRequestEnabled()) {
+      this.context.logger.info(`跳过站内补充分配请求: reason=${reason}, maxConnections<=0`);
       this.clearHoldingRooms();
       return false;
     }
-    if (
-      this.holdingRoomRequestRefreshing
-      || (!options?.force && Date.now() < this.nextHoldingRoomRequestAt)
-    ) {
+    if (this.holdingRoomRequestRefreshing) {
+      this.context.logger.info(`跳过站内补充分配请求: reason=${reason}, 上一次请求仍在进行`);
+      return false;
+    }
+    if (!options?.force && Date.now() < this.nextHoldingRoomRequestAt) {
+      this.context.logger.info(`跳过站内补充分配请求: reason=${reason}, 等待下次允许请求时间`);
       return false;
     }
     if (this.hasPendingRoomConnections()) {
+      this.context.logger.info(`跳过站内补充分配请求: reason=${reason}, 仍有待连接房间`);
       return false;
     }
 
@@ -423,6 +428,9 @@ export class DanmakuHoldingRoomCoordinator {
       : undefined;
     const capacity = Math.max(0, Math.min(Math.floor(maxConnections), capacityOverride ?? Math.floor(maxConnections), 100));
     const desiredCount = Math.max(0, capacity - this.holdingRoomIds.length);
+    this.context.logger.info(
+      `准备请求站内补充分配: reason=${reason}, maxConnections=${maxConnections}, capacity=${capacity}, holding=${this.holdingRoomIds.length}, desired=${desiredCount}, force=${options?.force ? 'true' : 'false'}`
+    );
     if (desiredCount <= 0 && !options?.force) {
       if (this.holdingRoomShortfall !== null) {
         this.setHoldingRoomShortfall(null);
@@ -442,7 +450,14 @@ export class DanmakuHoldingRoomCoordinator {
         capacityOverride,
       });
       if (!result) {
+        this.context.logger.info(`站内补充分配无返回: reason=${reason}`);
         return false;
+      }
+      this.context.logger.info(
+        `站内补充分配返回: reason=${reason}, holding=${result.holdingRooms.join(',') || 'none'}, newly=${result.newlyAssignedRooms.join(',') || 'none'}, dropped=${result.droppedRooms.join(',') || 'none'}, effectiveCapacity=${result.effectiveCapacity}`
+      );
+      if (result.shortfall) {
+        this.context.logger.info('站内补充分配短缺信息', result.shortfall);
       }
       this.applyHoldingRoomResult(result);
       return true;

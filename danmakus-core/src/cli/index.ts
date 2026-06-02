@@ -13,6 +13,7 @@ import { DEFAULT_CLI_CLIENT_VERSION, CORE_VERSION } from '../version.js';
 const program = new Command();
 const DEFAULT_RUNTIME_URL = 'https://backend.danmakus.com/api/v2/core-runtime';
 const DEFAULT_COOKIE_CLOUD_HOST = 'https://cookie.danmakus.com';
+const DEFAULT_CUSTOM_API_ENDPOINT = 'http://danmakus-archive-backend:8787/archive';
 
 const parseUidList = (value?: string): number[] | undefined => {
   if (typeof value !== 'string') {
@@ -62,7 +63,7 @@ program
       const cookieCloudPassword = options.cookiePassword || process.env.DANMAKUS_COOKIECLOUD_PASSWORD;
       const cookieCloudHost = options.cookieHost || process.env.DANMAKUS_COOKIECLOUD_HOST || DEFAULT_COOKIE_CLOUD_HOST;
       const logLevel = options.logLevel || (options.verbose ? 'debug' : 'info');
-      const customApiEndpoint = options.customApiEndpoint || process.env.CUSTOM_API_ENDPOINT;
+      const customApiEndpoint = options.customApiEndpoint || process.env.CUSTOM_API_ENDPOINT || DEFAULT_CUSTOM_API_ENDPOINT;
       const targetUids = options.targetUids ?? parseUidList(process.env.TARGET_UIDS);
 
       if (capacityOverride !== undefined && (isNaN(capacityOverride) || capacityOverride < 1 || capacityOverride > 100)) {
